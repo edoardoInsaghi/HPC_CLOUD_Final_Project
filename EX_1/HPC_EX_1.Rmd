@@ -1,0 +1,450 @@
+---
+title: "HPC_EX_1"
+author: "Edoardo Insaghi"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r libraries}
+library(dplyr)
+library(tidyverse)
+
+library(xtable)
+
+library(viridis)
+library(ggplot2)
+library(plotly)
+library(patchwork)
+colors = "viridis"
+p2 = 2^seq(1, 8)
+```
+
+
+```{r NPROC_RESULTS}
+
+bcast_linear = read.csv("NPROC_DATA/data_bcast_linear.csv")
+bcast_linear$Algorithm = rep("Linear", nrow(bcast_linear))
+bcast_pipeline = read.csv("NPROC_DATA/data_bcast_pipeline.csv")
+bcast_pipeline$Algorithm = rep("Pipeline", nrow(bcast_pipeline))
+bcast_binomial = read.csv("NPROC_DATA/data_bcast_binomial.csv")
+bcast_binomial$Algorithm = rep("Binomial", nrow(bcast_binomial))
+
+
+# Plots for all algorithm and different number of processes
+bcast_data = rbind(bcast_linear, bcast_pipeline, bcast_binomial) %>% 
+  mutate(Algorithm_Allocation = paste0(Algorithm, "-", Allocation))
+
+bcast_res = bcast_data %>% ggplot(aes(x=MPI_Processes, y=Latency, color=Algorithm_Allocation)) + 
+  geom_point(size=0.6) +
+  geom_line() + 
+  geom_vline(xintercept = p2, linetype = "dashed", color = "gray") +
+  labs(title="Latency of the Broadcast collective communication",
+        x="Number of MPI processes [2-256]", y="Latency (us)",
+        subtitle="MSG_SIZE = 1, Warmup Iterations = 1000, Total Iterations = 20000") + 
+  scale_color_viridis(discrete=TRUE, option="plasma") + theme_bw()
+bcast_res
+
+# Zoom in on less noisy latencies
+bcast_data_short = bcast_data %>% filter(MPI_Processes <= 64)
+
+bcast_res_short = bcast_data_short %>% ggplot(aes(x=MPI_Processes, y=Latency, color=Algorithm_Allocation)) + 
+  geom_point(size=0.6) + geom_line() + labs(title="Latency of the Broadcast collective communication",
+                     x="Number of MPI processes [2-64]", y="Latency (us)",
+                     subtitle="MSG_SIZE = 1, Warmup Iterations = 1000, Total Iterations = 20000") + 
+  scale_color_viridis(discrete=TRUE, option=colors) + theme_bw()
+
+#bcast_res + bcast_res_short
+
+
+# Plots and models for different algorithms
+
+# Bcast Linear
+dsocket = bcast_linear %>% filter(Allocation=="socket")
+dnode = bcast_linear %>% filter(Allocation=="node")
+bcast_linear_socket = lm(data=dsocket, Latency ~ -1 + MPI_Processes * I(MPI_Processes>128))
+bcast_linear_node = lm(data=dnode, Latency ~ -1 + MPI_Processes)
+fitted_socket = data.frame("MPI_Processes" = dsocket$MPI_Processes,
+                           "Latency" = predict(bcast_linear_socket, dsocket))
+fitted_node = data.frame("MPI_Processes" = dnode$MPI_Processes,
+                         "Latency" = predict(bcast_linear_node, dnode))
+
+bcast_linear_plot = bcast_linear %>% ggplot(aes(x=MPI_Processes, y=Latency, color=Allocation))  + 
+  geom_point(size=0.6) + 
+  geom_line() + 
+  geom_vline(xintercept = p2, linetype = "dashed", color = "gray") +
+  geom_line(data=fitted_socket, aes(x=MPI_Processes, y=Latency), color="black") + 
+  geom_line(data=fitted_node, aes(x=MPI_Processes, y=Latency), color="black") + 
+  labs(#title="Latency of the Broadcast collective communication, algorithm Linear",
+              x="Number of MPI processes [2-256]", y="Latency (us)",
+              subtitle="MSG_SIZE = 1, Warmup Iterations = 1000, Total Iterations = 20000") + 
+  scale_color_viridis(discrete=TRUE, option=colors) + theme_bw()
+
+bcast_linear_plot
+
+print(xtable(bcast_linear_socket))
+print(xtable(bcast_linear_node))
+
+
+
+# Bcast Pipeline
+dsocket = bcast_pipeline %>% filter(Allocation=="socket")
+dnode = bcast_pipeline %>% filter(Allocation=="node")
+bcast_pipeline_socket = lm(data=dsocket, Latency ~ -1 + MPI_Processes * I(MPI_Processes>128))
+bcast_pipeline_node = lm(data=dnode, Latency ~ -1 + MPI_Processes)
+fitted_socket = data.frame("MPI_Processes" = dsocket$MPI_Processes,
+                           "Latency" = predict(bcast_pipeline_socket, dsocket))
+fitted_node = data.frame("MPI_Processes" = dnode$MPI_Processes,
+                         "Latency" = predict(bcast_pipeline_node, dnode))
+
+bcast_pipeline_plot = bcast_pipeline %>% ggplot(aes(x=MPI_Processes, y=Latency, color=Allocation))  + 
+  geom_point(size=0.6) + 
+  geom_line() + 
+  geom_vline(xintercept = p2, linetype = "dashed", color = "gray") +
+  geom_line(data=fitted_socket, aes(x=MPI_Processes, y=Latency), color="black") + 
+  geom_line(data=fitted_node, aes(x=MPI_Processes, y=Latency), color="black") + 
+  labs(#title="Latency of the Broadcast collective communication, algorithm Pipeline",
+              x="Number of MPI processes [2-256]", y="Latency (us)",
+              subtitle="MSG_SIZE = 1, Warmup Iterations = 1000, Total Iterations = 20000") + 
+  scale_color_viridis(discrete=TRUE, option=colors) + theme_bw()
+
+bcast_pipeline_plot
+
+print(xtable(bcast_pipeline_socket))
+print(xtable(bcast_pipeline_node))
+
+
+
+# Bcast Binomial
+dsocket = bcast_binomial %>% filter(Allocation=="socket")
+dnode = bcast_binomial %>% filter(Allocation=="node")
+bcast_binomial_socket = lm(data=dsocket, log(Latency) ~ -1 + MPI_Processes * I(MPI_Processes>128))
+bcast_binomial_node = lm(data=dnode, log(Latency) ~ MPI_Processes)
+fitted_socket = data.frame("MPI_Processes" = dsocket$MPI_Processes,
+                           "Latency" = predict(bcast_binomial_socket, dsocket))
+fitted_node = data.frame("MPI_Processes" = dnode$MPI_Processes,
+                         "Latency" = predict(bcast_binomial_node, dnode))
+
+bcast_binomial_plot = bcast_binomial %>% ggplot(aes(x=MPI_Processes, y=log(Latency), color=Allocation))  + 
+  geom_point(size=0.6) + 
+  geom_line() + 
+  geom_vline(xintercept = p2, linetype = "dashed", color = "gray") +
+  geom_line(data=fitted_socket, aes(x=MPI_Processes, y=Latency), color="black") + 
+  geom_line(data=fitted_node, aes(x=MPI_Processes, y=Latency), color="black") + 
+  labs(#title="Latency of the Broadcast collective communication, algorithm Binomial",
+              x="Number of MPI processes [2-256]", y="log(Latency) (us)",
+              subtitle="MSG_SIZE = 1, Warmup Iterations = 1000, Total Iterations = 20000") + 
+  scale_color_viridis(discrete=TRUE, option=colors) + theme_bw()
+
+bcast_binomial_plot
+
+print(xtable(bcast_binomial_socket))
+print(xtable(bcast_binomial_node))
+
+
+# Naive Model
+bcast_model = lm(data=bcast_data, Latency ~ -1 + MPI_Processes : Algorithm_Allocation)
+summary(bcast_model)
+
+
+
+##############################################################################################################################
+
+
+
+reduce_linear = read.csv("NPROC_DATA/data_reduce_linear.csv")
+reduce_linear$Algorithm = rep("Linear", nrow(reduce_linear))
+reduce_pipeline = read.csv("NPROC_DATA/data_reduce_pipeline.csv")
+reduce_pipeline$Algorithm = rep("Pipeline", nrow(reduce_pipeline))
+reduce_binomial = read.csv("NPROC_DATA/data_reduce_binomial.csv")
+reduce_binomial$Algorithm = rep("Binomial", nrow(reduce_binomial))
+
+
+# Plots for all algorithm and different number of processes
+reduce_data = rbind(reduce_linear, reduce_pipeline, reduce_binomial) %>% 
+  mutate(Algorithm_Allocation = paste0(Algorithm, "-", Allocation))
+
+reduce_res = reduce_data %>% ggplot(aes(x=MPI_Processes, y=Latency, color=Algorithm_Allocation)) + 
+  geom_point(size=0.6) +
+  geom_line() + 
+  geom_vline(xintercept = p2, linetype = "dashed", color = "gray") +
+  labs(title="Latency of the Reduce collective communication",
+       x="Number of MPI processes [2-256]", y="Latency (us)",
+       subtitle="MSG_SIZE = 1, Warmup Iterations = 1000, Total Iterations = 20000") + 
+  scale_color_viridis(discrete=TRUE, option="plasma") + theme_bw()
+reduce_res
+
+
+# Zoom in on less noisy latencies
+reduce_data_short = reduce_data %>% filter(MPI_Processes <= 64)
+
+reduce_res_short = reduce_data_short %>% ggplot(aes(x=MPI_Processes, y=Latency, color=Algorithm_Allocation)) + 
+  geom_point(size=0.6) + geom_line() + labs(title="Latency of the Reduce collective communication",
+                     x="Number of MPI processes [2-64]", y="Latency (us)",
+                     subtitle="MSG_SIZE = 1, Warmup Iterations = 1000, Total Iterations = 20000") + 
+  scale_color_viridis(discrete=TRUE, option=colors) + theme_bw()
+
+#reduce_res + reduce_res_short
+
+
+
+
+# Plots and models for different algorithms
+
+
+# Reduce Linear
+dsocket = reduce_linear %>% filter(Allocation=="socket")
+dnode = reduce_linear %>% filter(Allocation=="node")
+reduce_linear_socket = lm(data=dsocket, Latency ~ -1 + MPI_Processes * I(MPI_Processes>128))
+reduce_linear_node = lm(data=dnode, Latency ~ -1 + MPI_Processes)
+fitted_socket = data.frame("MPI_Processes" = dsocket$MPI_Processes,
+                           "Latency" = predict(reduce_linear_socket, dsocket))
+fitted_node = data.frame("MPI_Processes" = dnode$MPI_Processes,
+                         "Latency" = predict(reduce_linear_node, dnode))
+
+reduce_linear_plot = reduce_linear %>% ggplot(aes(x=MPI_Processes, y=Latency, color=Allocation))  + 
+  geom_point(size=0.6) + 
+  geom_line() + 
+  geom_vline(xintercept = p2, linetype = "dashed", color = "gray") +
+  geom_line(data=fitted_socket, aes(x=MPI_Processes, y=Latency), color="black") + 
+  geom_line(data=fitted_node, aes(x=MPI_Processes, y=Latency), color="black") + 
+  labs(title="Latency of the Reduce collective communication, algorithm Linear",
+              x="Number of MPI processes [2-256]", y="Latency (us)",
+              subtitle="MSG_SIZE = 1, Warmup Iterations = 1000, Total Iterations = 20000") + 
+  scale_color_viridis(discrete=TRUE, option=colors) + theme_bw()
+
+reduce_linear_plot
+
+print(xtable(reduce_linear_socket))
+print(xtable(reduce_linear_node))
+
+
+# Reduce Pipeline
+dsocket = reduce_pipeline %>% filter(Allocation=="socket")
+dnode = reduce_pipeline %>% filter(Allocation=="node")
+reduce_pipeline_socket = lm(data=dsocket, Latency ~ -1 + MPI_Processes * I(MPI_Processes>128))
+reduce_pipeline_node = lm(data=dnode, Latency ~ -1 + MPI_Processes)
+fitted_socket = data.frame("MPI_Processes" = dsocket$MPI_Processes,
+                           "Latency" = predict(reduce_pipeline_socket, dsocket))
+fitted_node = data.frame("MPI_Processes" = dnode$MPI_Processes,
+                         "Latency" = predict(reduce_pipeline_node, dnode))
+
+reduce_pipeline_plot = reduce_pipeline %>% ggplot(aes(x=MPI_Processes, y=Latency, color=Allocation))  + 
+  geom_point(size=0.6) + 
+  geom_line() + 
+  geom_vline(xintercept = p2, linetype = "dashed", color = "gray") +
+  geom_line(data=fitted_socket, aes(x=MPI_Processes, y=Latency), color="black") + 
+  geom_line(data=fitted_node, aes(x=MPI_Processes, y=Latency), color="black") + 
+  labs(title="Latency of the Reduce collective communication, algorithm Pipeline",
+              x="Number of MPI processes [2-256]", y="Latency (us)",
+              subtitle="MSG_SIZE = 1, Warmup Iterations = 1000, Total Iterations = 20000") + 
+  scale_color_viridis(discrete=TRUE, option=colors) + theme_bw()
+
+reduce_pipeline_plot
+
+print(xtable(reduce_pipeline_socket))
+print(xtable(reduce_pipeline_node))
+
+
+# Reduce Binomial
+dsocket = reduce_binomial %>% filter(Allocation=="socket")
+dnode = reduce_binomial %>% filter(Allocation=="node")
+reduce_binomial_socket = lm(data=dsocket, log(Latency) ~ -1 + MPI_Processes * I(MPI_Processes>128))
+reduce_binomial_node = lm(data=dnode, log(Latency) ~  MPI_Processes)
+fitted_socket = data.frame("MPI_Processes" = dsocket$MPI_Processes,
+                           "Latency" = predict(reduce_binomial_socket, dsocket))
+fitted_node = data.frame("MPI_Processes" = dnode$MPI_Processes,
+                         "Latency" = predict(reduce_binomial_node, dnode))
+
+reduce_binomial_plot = reduce_binomial %>% ggplot(aes(x=MPI_Processes, y=log(Latency), color=Allocation))  + 
+  geom_point(size=0.6) + 
+  geom_line() + 
+  geom_vline(xintercept = p2, linetype = "dashed", color = "gray") +
+  geom_line(data=fitted_socket, aes(x=MPI_Processes, y=Latency), color="black") + 
+  geom_line(data=fitted_node, aes(x=MPI_Processes, y=Latency), color="black") + 
+  labs(title="Latency of the Reduce collective communication, algorithm Binomial",
+              x="Number of MPI processes [2-256]", y="log(Latency) (us)",
+              subtitle="MSG_SIZE = 1, Warmup Iterations = 1000, Total Iterations = 20000") + 
+  scale_color_viridis(discrete=TRUE, option=colors) + theme_bw()
+
+reduce_binomial_plot
+
+print(xtable(reduce_binomial_socket))
+print(xtable(reduce_binomial_node))
+
+
+# Naive Model
+reduce_model = lm(data=reduce_data, Latency ~ -1 + MPI_Processes : Algorithm_Allocation)
+summary(reduce_model)
+```
+
+
+
+```{r MSGSIZE_RESULTS}
+
+bcast_linear = read.csv("MSGSIZE_DATA/data_bcast_linear.csv")
+bcast_linear$Algorithm = rep("Linear", nrow(bcast_linear))
+bcast_pipeline = read.csv("MSGSIZE_DATA/data_bcast_pipeline.csv")
+bcast_pipeline$Algorithm = rep("Pipeline", nrow(bcast_pipeline))
+bcast_binomial = read.csv("MSGSIZE_DATA/data_bcast_binomial.csv")
+bcast_binomial$Algorithm = rep("Binomial", nrow(bcast_binomial))
+reduce_linear = read.csv("MSGSIZE_DATA/data_reduce_linear.csv")
+reduce_linear$Algorithm = rep("Linear", nrow(reduce_linear))
+reduce_pipeline = read.csv("MSGSIZE_DATA/data_reduce_pipeline.csv")
+reduce_pipeline$Algorithm = rep("Pipeline", nrow(reduce_pipeline))
+reduce_binomial = read.csv("MSGSIZE_DATA/data_reduce_binomial.csv")
+reduce_binomial$Algorithm = rep("Binomial", nrow(reduce_binomial))
+
+
+##### BROADCAST LINEAR #####
+
+axx = list(nticks = 4, range = c(0,10), title = "log2(MPI processes)")
+axy = list(nticks = 4, range = c(0,22), title = "log2(message size)")
+axz = list(nticks = 4, range = c(-6,15), title = "log2(latency) us")
+
+dfnode = bcast_linear %>% filter(Allocation=="node")
+fignode = plot_ly(x=log2(dfnode$MPI_Processes), y=log2(dfnode$Message_Size), z=log2(dfnode$Latency), 
+               type="scatter3d", color=log2(dfnode$Latency), colorscale="Viridis")
+fignode = fignode %>% layout(scene = list(xaxis=axx,yaxis=axy,zaxis=axz))
+fignode
+
+dfsocket = bcast_linear %>% filter(Allocation=="socket")
+figsocket = plot_ly(x=log2(dfsocket$MPI_Processes), y=log2(dfsocket$Message_Size), z=log2(dfsocket$Latency), 
+               type="scatter3d", color=log2(dfsocket$Latency), colorscale="Viridis")
+figsocket = figsocket %>% layout(scene = list(xaxis=axx,yaxis=axy,zaxis=axz))
+figsocket
+
+
+##### BROADCAST PIPELINE #####
+
+axx = list(nticks = 4, range = c(0,10), title = "log2(MPI processes)")
+axy = list(nticks = 4, range = c(0,22), title = "log2(message size)")
+axz = list(nticks = 4, range = c(-6,15), title = "log2(latency) us")
+
+dfnode = bcast_pipeline %>% filter(Allocation=="node")
+fignode = plot_ly(x=log2(dfnode$MPI_Processes), y=log2(dfnode$Message_Size), z=log2(dfnode$Latency), 
+               type="scatter3d", color=log2(dfnode$Latency), colorscale="Viridis")
+fignode = fignode %>% layout(scene = list(xaxis=axx,yaxis=axy,zaxis=axz))
+fignode
+
+dfsocket = bcast_pipeline %>% filter(Allocation=="socket")
+figsocket = plot_ly(x=log2(dfsocket$MPI_Processes), y=log2(dfsocket$Message_Size), z=log2(dfsocket$Latency), 
+               type="scatter3d", color=log2(dfsocket$Latency), colorscale="Viridis")
+figsocket = figsocket %>% layout(scene = list(xaxis=axx,yaxis=axy,zaxis=axz))
+figsocket
+
+
+##### BROADCAST BINOMIAL #####
+
+axx = list(nticks = 4, range = c(0,10), title = "log2(MPI processes)")
+axy = list(nticks = 4, range = c(0,22), title = "log2(message size)")
+axz = list(nticks = 4, range = c(-6,15), title = "log2(latency) us")
+
+dfnode = bcast_binomial %>% filter(Allocation=="node")
+fignode = plot_ly(x=log2(dfnode$MPI_Processes), y=log2(dfnode$Message_Size), z=log2(dfnode$Latency), 
+               type="scatter3d", color=log2(dfnode$Latency), colorscale="Viridis")
+fignode = fignode %>% layout(scene = list(xaxis=axx,yaxis=axy,zaxis=axz))
+fignode
+
+dfsocket = bcast_binomial %>% filter(Allocation=="socket")
+figsocket = plot_ly(x=log2(dfsocket$MPI_Processes), y=log2(dfsocket$Message_Size), z=log2(dfsocket$Latency), 
+               type="scatter3d", color=log2(dfsocket$Latency), colorscale="Viridis")
+figsocket = figsocket %>% layout(scene = list(xaxis=axx,yaxis=axy,zaxis=axz))
+figsocket
+
+
+##### BROADCAST MODEL
+bcast_data_sz = rbind(bcast_linear, bcast_pipeline, bcast_binomial) %>% 
+  mutate(Algorithm_Allocation = paste0(Algorithm, "-", Allocation))
+
+bcast_model_sz = lm(data=bcast_data_sz, log2(Latency) ~ -1 + log2(MPI_Processes) : Algorithm_Allocation + Message_Size : Algorithm_Allocation)
+summary(bcast_model_sz)
+print(xtable(bcast_model_sz))
+
+
+
+##### REDUCE #####
+
+##### REDUCE LINEAR #####
+
+axx = list(nticks = 4, range = c(0,10), title = "log2(MPI processes)")
+axy = list(nticks = 4, range = c(0,22), title = "log2(message size)")
+axz = list(nticks = 4, range = c(-6,15), title = "log2(latency) us")
+
+dfnode = reduce_linear %>% filter(Allocation=="node")
+fignode = plot_ly(x=log2(dfnode$MPI_Processes), y=log2(dfnode$Message_Size), z=log2(dfnode$Latency), 
+               type="scatter3d", color=log2(dfnode$Latency), colorscale="Viridis")
+fignode = fignode %>% layout(scene = list(xaxis=axx,yaxis=axy,zaxis=axz))
+fignode
+
+dfsocket = reduce_linear %>% filter(Allocation=="socket")
+figsocket = plot_ly(x=log2(dfsocket$MPI_Processes), y=log2(dfsocket$Message_Size), z=log2(dfsocket$Latency), 
+               type="scatter3d", color=log2(dfsocket$Latency), colorscale="Viridis")
+figsocket = figsocket %>% layout(scene = list(xaxis=axx,yaxis=axy,zaxis=axz))
+figsocket
+
+
+##### REDUCE PIPELINE #####
+
+axx = list(nticks = 4, range = c(0,10), title = "log2(MPI processes)")
+axy = list(nticks = 4, range = c(0,22), title = "log2(message size)")
+axz = list(nticks = 4, range = c(-6,15), title = "log2(latency) us")
+
+dfnode = reduce_pipeline %>% filter(Allocation=="node")
+fignode = plot_ly(x=log2(dfnode$MPI_Processes), y=log2(dfnode$Message_Size), z=log2(dfnode$Latency), 
+               type="scatter3d", color=log2(dfnode$Latency), colorscale="Viridis")
+fignode = fignode %>% layout(scene = list(xaxis=axx,yaxis=axy,zaxis=axz))
+fignode
+
+dfsocket = reduce_pipeline %>% filter(Allocation=="socket")
+figsocket = plot_ly(x=log2(dfsocket$MPI_Processes), y=log2(dfsocket$Message_Size), z=log2(dfsocket$Latency), 
+               type="scatter3d", color=log2(dfsocket$Latency), colorscale="Viridis")
+figsocket = figsocket %>% layout(scene = list(xaxis=axx,yaxis=axy,zaxis=axz))
+figsocket
+
+
+##### REDUCE BINOMIAL #####
+
+axx = list(nticks = 4, range = c(0,10), title = "log2(MPI processes)")
+axy = list(nticks = 4, range = c(0,22), title = "log2(message size)")
+axz = list(nticks = 4, range = c(-6,15), title = "log2(latency) us")
+
+dfnode = reduce_binomial %>% filter(Allocation=="node")
+fignode = plot_ly(x=log2(dfnode$MPI_Processes), y=log2(dfnode$Message_Size), z=log2(dfnode$Latency), 
+               type="scatter3d", color=log2(dfnode$Latency), colorscale="Viridis")
+fignode = fignode %>% layout(scene = list(xaxis=axx,yaxis=axy,zaxis=axz))
+fignode
+
+dfsocket = reduce_binomial %>% filter(Allocation=="socket")
+figsocket = plot_ly(x=log2(dfsocket$MPI_Processes), y=log2(dfsocket$Message_Size), z=log2(dfsocket$Latency), 
+               type="scatter3d", color=log2(dfsocket$Latency), colorscale="Viridis")
+figsocket = figsocket %>% layout(scene = list(xaxis=axx,yaxis=axy,zaxis=axz))
+figsocket
+
+
+##### REDUCE MODEL
+reduce_data_sz = rbind(reduce_linear, reduce_pipeline, reduce_binomial) %>% 
+  mutate(Algorithm_Allocation = paste0(Algorithm, "-", Allocation))
+
+reduce_model_sz = lm(data=reduce_data_sz, log2(Latency) ~ -1 + log2(MPI_Processes) : Algorithm_Allocation + Message_Size : Algorithm_Allocation)
+summary(reduce_model_sz)
+print(xtable(reduce_model_sz))
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

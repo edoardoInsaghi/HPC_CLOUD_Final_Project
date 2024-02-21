@@ -1,0 +1,195 @@
+---
+title: "HPC_EX_2"
+author: "Edoardo Insaghi"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r libraries}
+library(dplyr)
+library(tidyverse)
+
+library(xtable)
+
+library(viridis)
+library(ggplot2)
+library(plotly)
+library(patchwork)
+colors = "viridis"
+p2 = 2^seq(1, 18)
+```
+
+
+```{r broadcast flat tree}
+bcast_flat_tree = read.csv("data2/data_flat_tree.csv") %>% 
+  pivot_longer(cols=c(Latency, Latency_default), 
+               names_to="Implementation", values_to="Latency")
+bcast_flat_tree$Algorithm = rep("flat_tree", nrow(bcast_flat_tree))
+
+bcast_flat_tree = bcast_flat_tree %>%mutate(Implementation_Allocation = paste0(Implementation, "-", Allocation))
+
+flat_tree_res = bcast_flat_tree %>% ggplot(aes(x=MPI_Processes, y=Latency, color=Implementation_Allocation)) + 
+  geom_point(size=0.4) +
+  geom_line() + 
+  geom_vline(xintercept = p2, linetype = "dashed", color = "gray") +
+  labs(title="Flat Tree Algorithm",
+        x="Number of MPI processes [2-256]", y="Time (s)",
+        subtitle=paste0("MSG_SIZE = ", bcast_flat_tree$Data_Size[1] * 4, " Warmup Iterations = 1000, Total Iterations = 5000")) + 
+  scale_color_viridis(discrete=TRUE, option="plasma") + theme_bw()
+flat_tree_res
+
+```
+
+```{r broadcast chain tree}
+
+bcast_chain_tree = read.csv("data2/data_chain_tree.csv") %>% 
+  pivot_longer(cols=c(Latency, Latency_default), 
+               names_to="Implementation", values_to="Latency")
+bcast_chain_tree$Algorithm = rep("chain_tree", nrow(bcast_chain_tree))
+
+bcast_chain_tree = bcast_chain_tree %>%mutate(Implementation_Allocation = paste0(Implementation, "-", Allocation))
+
+chain_tree_res = bcast_chain_tree %>% ggplot(aes(x=MPI_Processes, y=Latency, color=Implementation_Allocation)) + 
+  geom_point(size=0.4) +
+  geom_line() + 
+  geom_vline(xintercept = p2, linetype = "dashed", color = "gray") +
+  labs(title="Chain Tree Algorithm",
+        x="Number of MPI processes [2-256]", y="Time (s)",
+        subtitle=paste0("MSG_SIZE = ", bcast_chain_tree$Data_Size[1] * 4, " Warmup Iterations = 1000, Total Iterations = 5000")) + 
+  scale_color_viridis(discrete=TRUE, option="plasma") + theme_bw()
+chain_tree_res
+```
+
+
+```{r broadcast binary tree}
+bcast_binary_tree = read.csv("data2/data_binary_tree.csv") %>% 
+  pivot_longer(cols=c(Latency, Latency_default), 
+               names_to="Implementation", values_to="Latency")
+bcast_binary_tree$Algorithm = rep("binary_tree", nrow(bcast_binary_tree))
+
+bcast_binary_tree = bcast_binary_tree %>%mutate(Implementation_Allocation = paste0(Implementation, "-", Allocation))
+
+binary_tree_res = bcast_binary_tree %>% ggplot(aes(x=MPI_Processes, y=Latency, color=Implementation_Allocation)) + 
+  geom_point(size=0.4) +
+  geom_line() + 
+  geom_vline(xintercept = p2, linetype = "dashed", color = "gray") +
+  labs(title="Binary Tree Algorithm",
+        x="Number of MPI processes [2-256]", y="Time (s)",
+        subtitle=paste0("MSG_SIZE = ", bcast_binary_tree$Data_Size[1] * 4, " Warmup Iterations = 1000, Total Iterations = 5000")) + 
+  scale_color_viridis(discrete=TRUE, option="plasma") + theme_bw()
+binary_tree_res
+
+```
+
+
+```{r data_size}
+
+dfsize = read.csv("data_size.csv") %>% 
+  pivot_longer(cols=c(Latency, Latency_default), names_to="Implementation", values_to="Latency")
+  
+dfsize$Algorithm[dfsize$Algorithm == 1] = "flat_tree"
+dfsize$Algorithm[dfsize$Algorithm == 2] = "chain_tree"
+dfsize$Algorithm[dfsize$Algorithm == 5] = "binary_tree"
+
+dfsize = dfsize %>% mutate(Implementation_Algorithm = paste0(Algorithm, "_", Implementation))
+
+df32 = dfsize %>% filter(MPI_Processes == 32)
+df64 = dfsize %>% filter(MPI_Processes == 64)
+df128 = dfsize %>% filter(MPI_Processes == 128)
+#df256 = dfsize %>% filter(MPI_Processes == 256)
+
+makeplot = function(df)
+{
+  color_groups = unique(df$Implementation_Algorithm)
+  color_palette = c("#D8BFD8", "#800080", "lightblue", "blue", "red", "darkred")
+  color_mapping = setNames(color_palette, color_groups)
+  
+  p = ggplot(data=df, aes(x=Data_Size, y=Latency, color=Implementation_Algorithm)) + 
+    geom_point(size=1) +
+    geom_line(linewidth=1.2) + 
+    labs(title="Latency vs Data Size",
+        x="Size of the buffer (bytes)", y="Time (s)",
+        subtitle=paste0("Processes in the communicator = ", df$MPI_Processes[1])) + 
+    scale_color_viridis(discrete=TRUE, option="plasma") + theme_bw()
+  
+  return(p)
+}
+
+
+p32 = makeplot(df32)
+p32
+p64 = makeplot(df64)
+p64
+p128 = makeplot(df128)
+p128
+
+
+```
+
+```{r broadcast flat tree1}
+bcast_flat_tree = read.csv("data3/data_flat_tree.csv") %>% 
+  pivot_longer(cols=c(Latency, Latency_default), 
+               names_to="Implementation", values_to="Latency")
+bcast_flat_tree$Algorithm = rep("flat_tree", nrow(bcast_flat_tree))
+
+bcast_flat_tree = bcast_flat_tree %>%mutate(Implementation_Allocation = paste0(Implementation, "-", Allocation))
+
+flat_tree_res = bcast_flat_tree %>% ggplot(aes(x=MPI_Processes, y=1e6 * Latency, color=Implementation_Allocation)) + 
+  geom_point(size=0.4) +
+  geom_line(linewidth=0.2) + 
+  geom_vline(xintercept = p2, linetype = "dashed", color = "gray") +
+  labs(title="Flat Tree Algorithm",
+        x="Number of MPI processes [2-256]", y="Time (us)",
+        subtitle=paste0("MSG_SIZE = ", bcast_flat_tree$Data_Size[1] * 4, " Warmup Iterations = 1000, Total Iterations = 5000")) + 
+  scale_color_viridis(discrete=TRUE, option="plasma") + theme_bw()
+flat_tree_res
+
+```
+
+
+
+
+```{r broadcast chain tree1}
+
+bcast_chain_tree = read.csv("data3/data_chain_tree.csv") %>% 
+  pivot_longer(cols=c(Latency, Latency_default), 
+               names_to="Implementation", values_to="Latency")
+bcast_chain_tree$Algorithm = rep("chain_tree", nrow(bcast_chain_tree))
+
+bcast_chain_tree = bcast_chain_tree %>% mutate(Implementation_Allocation = paste0(Implementation, "-", Allocation))
+
+chain_tree_res = bcast_chain_tree %>% ggplot(aes(x=MPI_Processes, y=1e6*Latency, color=Implementation_Allocation)) + 
+  geom_point(size=0.4) +
+  geom_line(linewidth=0.2) + 
+  geom_vline(xintercept = p2, linetype = "dashed", color = "gray") +
+  labs(title="Chain Tree Algorithm",
+        x="Number of MPI processes [2-256]", y="Time (us)",
+        subtitle=paste0("MSG_SIZE = ", bcast_chain_tree$Data_Size[1] * 4, " Warmup Iterations = 1000, Total Iterations = 5000")) + 
+  scale_color_viridis(discrete=TRUE, option="plasma") + theme_bw()
+chain_tree_res
+```
+
+
+
+```{r broadcast binary tree1}
+bcast_binary_tree = read.csv("data3/data_binary_tree.csv") %>% 
+  pivot_longer(cols=c(Latency, Latency_default), 
+               names_to="Implementation", values_to="Latency")
+bcast_binary_tree$Algorithm = rep("binary_tree", nrow(bcast_binary_tree))
+
+bcast_binary_tree = bcast_binary_tree %>%mutate(Implementation_Allocation = paste0(Implementation, "-", Allocation))
+
+binary_tree_res = bcast_binary_tree %>% ggplot(aes(x=MPI_Processes, y=1e6*Latency, color=Implementation_Allocation)) + 
+  geom_point(size=0.4) +
+  geom_line(size=0.2) + 
+  geom_vline(xintercept = p2, linetype = "dashed", color = "gray") +
+  labs(title="Binary Tree Algorithm",
+        x="Number of MPI processes [2-256]", y="Time (us)",
+        subtitle=paste0("MSG_SIZE = ", bcast_binary_tree$Data_Size[1] * 4, " Warmup Iterations = 1000, Total Iterations = 5000")) + 
+  scale_color_viridis(discrete=TRUE, option="plasma") + theme_bw()
+binary_tree_res
+
+```
