@@ -92,9 +92,9 @@ binary_tree_res
 ```
 
 
-```{r data_size}
+```{r data_size node}
 
-dfsize = read.csv("data/data_size.csv") %>% 
+dfsize = read.csv("data/data_size_node.csv") %>% 
   pivot_longer(cols=c(Latency, Latency_default), names_to="Implementation", values_to="Time")
 dfsize$Implementation[dfsize$Implementation == "Latency"] = "Time"
 dfsize$Implementation[dfsize$Implementation == "Latency_default"] = "Time_Default"
@@ -111,10 +111,6 @@ df128 = dfsize %>% filter(MPI_Processes == 128)
 
 makeplot = function(df)
 {
-  color_groups = unique(df$Implementation_Algorithm)
-  color_palette = c("#D8BFD8", "#800080", "lightblue", "blue", "red", "darkred")
-  color_mapping = setNames(color_palette, color_groups)
-  
   p = ggplot(data=df, aes(x=Data_Size, y=1e6*Time, color=Implementation_Algorithm)) + 
     geom_point(size=1) +
     geom_line(linewidth=1.2) + 
@@ -143,8 +139,61 @@ grid.arrange(arrangeGrob(p32 + theme(legend.position = "none"),
 
 ```
 
-```{r simple model for the strong scaling}
+```{r simple model for the strong scaling node}
 sscmodel = lm(data=dfsize%>%mutate(problem_dim = Data_Size * MPI_Processes), 1e6*Time ~ -1 +problem_dim : Implementation_Algorithm)
 print(xtable(summary(sscmodel)))
+```
+
+
+```{r data_size core}
+
+dfsize = read.csv("data/data_size_core.csv") %>% 
+  pivot_longer(cols=c(Latency, Latency_default), names_to="Implementation", values_to="Time")
+dfsize$Implementation[dfsize$Implementation == "Latency"] = "Time"
+dfsize$Implementation[dfsize$Implementation == "Latency_default"] = "Time_Default"
+  
+dfsize$Algorithm[dfsize$Algorithm == 1] = "flat_tree"
+dfsize$Algorithm[dfsize$Algorithm == 2] = "chain_tree"
+dfsize$Algorithm[dfsize$Algorithm == 5] = "binary_tree"
+
+dfsize = dfsize %>% mutate(Implementation_Algorithm = paste0(Algorithm, "_", Implementation))
+
+df32 = dfsize %>% filter(MPI_Processes == 32)
+df64 = dfsize %>% filter(MPI_Processes == 64)
+df128 = dfsize %>% filter(MPI_Processes == 128)
+
+makeplot = function(df)
+{
+  
+  p = ggplot(data=df, aes(x=Data_Size, y=1e6*Time, color=Implementation_Algorithm)) + 
+    geom_point(size=1) +
+    geom_line(linewidth=1.2) + 
+    labs(#title="Latency vs Data Size",
+        x="Size of the buffer (B)", y="Time (us)",
+        subtitle=paste0("Processes in the communicator = ", df$MPI_Processes[1])) + 
+    scale_color_viridis(discrete=TRUE, option="plasma") + theme_bw()
+  
+  return(p)
+}
+
+
+p32 = makeplot(df32)
+p32
+p64 = makeplot(df64)
+p64
+p128 = makeplot(df128)
+p128
+
+grid.arrange(arrangeGrob(p32 + theme(legend.position = "none"), 
+                         p64 + theme(legend.position = "none"), 
+                         ncol=2),
+             p128, 
+             ncol=1,
+             top=textGrob("Time vs Size of the Message", gp=gpar(fontsize=16)))
+
+```
+```{r simple model for the strong scaling core}
+sscmodel = lm(data=dfsize%>%mutate(problem_dim = Data_Size * MPI_Processes), 1e6*Time ~ -1 +problem_dim : Implementation_Algorithm)
+summary(sscmodel)
 ```
 
