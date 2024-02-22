@@ -18,6 +18,7 @@ library(viridis)
 library(ggplot2)
 library(plotly)
 library(patchwork)
+
 colors = "viridis"
 p2 = 2^seq(1, 8)
 ```
@@ -30,7 +31,7 @@ bcast_linear$Algorithm = rep("Linear", nrow(bcast_linear))
 bcast_pipeline = read.csv("NPROC_DATA/data_bcast_pipeline.csv")
 bcast_pipeline$Algorithm = rep("Pipeline", nrow(bcast_pipeline))
 bcast_binomial = read.csv("NPROC_DATA/data_bcast_binomial.csv")
-bcast_binomial$Algorithm = rep("Binomial", nrow(bcast_binomial))
+bcast_binomial$Algorithm = rep("Binary", nrow(bcast_binomial))
 
 
 # Plots for all algorithm and different number of processes
@@ -77,7 +78,7 @@ bcast_linear_plot = bcast_linear %>% ggplot(aes(x=MPI_Processes, y=Latency, colo
   geom_vline(xintercept = p2, linetype = "dashed", color = "gray") +
   geom_line(data=fitted_socket, aes(x=MPI_Processes, y=Latency), color="black") + 
   geom_line(data=fitted_node, aes(x=MPI_Processes, y=Latency), color="black") + 
-  labs(#title="Latency of the Broadcast collective communication, algorithm Linear",
+  labs(title="Latency of the Broadcast collective communication, algorithm Linear",
               x="Number of MPI processes [2-256]", y="Latency (us)",
               subtitle="MSG_SIZE = 1, Warmup Iterations = 1000, Total Iterations = 20000") + 
   scale_color_viridis(discrete=TRUE, option=colors) + theme_bw()
@@ -105,7 +106,7 @@ bcast_pipeline_plot = bcast_pipeline %>% ggplot(aes(x=MPI_Processes, y=Latency, 
   geom_vline(xintercept = p2, linetype = "dashed", color = "gray") +
   geom_line(data=fitted_socket, aes(x=MPI_Processes, y=Latency), color="black") + 
   geom_line(data=fitted_node, aes(x=MPI_Processes, y=Latency), color="black") + 
-  labs(#title="Latency of the Broadcast collective communication, algorithm Pipeline",
+  labs(title="Latency of the Broadcast collective communication, algorithm Pipeline",
               x="Number of MPI processes [2-256]", y="Latency (us)",
               subtitle="MSG_SIZE = 1, Warmup Iterations = 1000, Total Iterations = 20000") + 
   scale_color_viridis(discrete=TRUE, option=colors) + theme_bw()
@@ -133,7 +134,7 @@ bcast_binomial_plot = bcast_binomial %>% ggplot(aes(x=MPI_Processes, y=log(Laten
   geom_vline(xintercept = p2, linetype = "dashed", color = "gray") +
   geom_line(data=fitted_socket, aes(x=MPI_Processes, y=Latency), color="black") + 
   geom_line(data=fitted_node, aes(x=MPI_Processes, y=Latency), color="black") + 
-  labs(#title="Latency of the Broadcast collective communication, algorithm Binomial",
+  labs(title="Latency of the Broadcast collective communication, algorithm Binary",
               x="Number of MPI processes [2-256]", y="log(Latency) (us)",
               subtitle="MSG_SIZE = 1, Warmup Iterations = 1000, Total Iterations = 20000") + 
   scale_color_viridis(discrete=TRUE, option=colors) + theme_bw()
@@ -264,7 +265,7 @@ reduce_binomial_plot = reduce_binomial %>% ggplot(aes(x=MPI_Processes, y=log(Lat
   geom_vline(xintercept = p2, linetype = "dashed", color = "gray") +
   geom_line(data=fitted_socket, aes(x=MPI_Processes, y=Latency), color="black") + 
   geom_line(data=fitted_node, aes(x=MPI_Processes, y=Latency), color="black") + 
-  labs(title="Latency of the Reduce collective communication, algorithm Binomial",
+  labs(title="Latency of the Reduce collective communication, algorithm Binary",
               x="Number of MPI processes [2-256]", y="log(Latency) (us)",
               subtitle="MSG_SIZE = 1, Warmup Iterations = 1000, Total Iterations = 20000") + 
   scale_color_viridis(discrete=TRUE, option=colors) + theme_bw()
