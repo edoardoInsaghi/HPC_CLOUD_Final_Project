@@ -40,7 +40,7 @@ bcast_data = rbind(bcast_linear, bcast_pipeline, bcast_binomial) %>%
 
 bcast_res = bcast_data %>% ggplot(aes(x=MPI_Processes, y=Latency, color=Algorithm_Allocation)) + 
   geom_point(size=0.6) +
-  geom_line() + 
+  geom_line(linewidth=0.2) + 
   geom_vline(xintercept = p2, linetype = "dashed", color = "gray") +
   labs(title="Latency of the Broadcast collective communication",
         x="Number of MPI processes [2-256]", y="Latency (us)",
