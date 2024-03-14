@@ -1,0 +1,34 @@
+
+
+
+```{r}
+pow2 = 2^(1:30)
+
+library(ggplot2)
+library(dplyr)
+
+dfdl = read.csv("download_times.csv") 
+dfdl$size = pow2
+
+dful = read.csv("upload_times.csv")
+dful$size = pow2
+
+dlplot = ggplot(dfdl, aes(x=size, y=Time)) + 
+  geom_point() + geom_line() + 
+  labs(title="File Download Times", x="Size of the File (B)", y="Time (ns)") + theme_bw()
+dlplot
+
+ulplot = ggplot(dful, aes(x=size, y=Time)) + 
+  geom_point() + geom_line() + 
+  labs(title="File Upload Times", x="Size of the File (B)", y="Time (ns)") + theme_bw()
+ulplot
+
+df = rbind(dfdl, dful)
+df$task = c(rep("Download", 30), rep("Upload", 30))
+p = ggplot(df, aes(x=size, y=Time, col=task)) + 
+  geom_point() + geom_line() + 
+  labs(x="Size of the File (B)", y="Time (ns)") + theme_bw()
+p
+
+```
+

@@ -4,7 +4,9 @@ This is the README file for the first exercise of the HPC course @ UniTs. The ex
 
 In order to complete the assignment, the version 7.3 of the osu-micro-benchmarks was downloaded and compiled following the instruction found on the Github repository of the course. After playing around with the benchmarks until I felt familiar enough with the library, I wrote a number of bash scripts to run the executables and extract the data through the use of some regular expressions. These scripts provide a csv file which I loaded into Rstudio to produce the plots and build the linear models. 
 
-I opted to use the gnu distribution of mpi, which can be easily loaded on ORFEO with the following command ```module load openMPI/4.1.5/gnu/12.2.1```. 
+I opted to use the gnu distribution of mpi, which can be easily loaded on ORFEO with the following command 
+
+```module load openMPI/4.1.5/gnu/12.2.1```. 
 
 The repository also includes the Rmd file with the code for the statistical analysis of the results as well as the plots of the data. 
 
